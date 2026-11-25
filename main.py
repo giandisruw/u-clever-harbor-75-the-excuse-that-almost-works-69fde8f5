@@ -25,16 +25,36 @@ def output_dir() -> str:
     return os.environ.get("MAKEFUN_OUTPUT_DIR", "/output")
 
 
-def main() -> None:
-    line = ENTRY.strip()
+def validate_entry(line: str) -> str:
+    """Check one line against the kit gate (competition.yaml).
+
+    Sealed gate: /output/entry.txt must be UTF-8 text of 1-140
+    characters, not only white space; the judge brief adds one line
+    of at most 20 words. Returns the stripped line.
+    """
+    line = line.strip()
     assert "\n" not in line, "entry must be a single line"
+    assert line, "entry must not be only white space"
     assert 1 <= len(line) <= 140, f"entry must be 1-140 chars, got {len(line)}"
-    assert 1 <= len(line.split()) <= 20, f"entry must be 1-20 words, got {len(line.split())}"
+    words = line.split()
+    assert 1 <= len(words) <= 20, f"entry must be 1-20 words, got {len(words)}"
+    return line
+
+
+def main() -> None:
+    line = validate_entry(ENTRY)
     outdir = output_dir()
     os.makedirs(outdir, exist_ok=True)
     path = os.path.join(outdir, "entry.txt")
     with open(path, "w", encoding="utf-8") as f:
         f.write(line)
+    # Verify the graded artifact itself: re-read entry.txt as UTF-8
+    # and check it against the same gate, so a bad write can never
+    # pass silently while the program exits 0.
+    with open(path, encoding="utf-8") as f:
+        written = f.read()
+    assert written == line, "written entry.txt does not match the validated line"
+    validate_entry(written)
     print(f"Wrote {len(line)} chars to {path}")
     print(line)
 
